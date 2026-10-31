@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康電子雞</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f3f4f6; /* 淺灰色背景，讓中央白色遊戲區更突出 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* 遊戲容器：固定 800x600 尺寸與白底 */
+        #game-container {
+            width: 800px;
+            height: 600px;
+            background-color: white;
+            position: relative;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border-radius: 1rem;
+            overflow: hidden;
+            max-width: 100vw; /* 避免在極小螢幕上超出邊界 */
+        }
+
+        /* 按鈕基礎與顏色設定 (一般顏色 與 active按下去的深色) */
+        .game-btn {
+            width: 140px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem; /* 18px */
+            font-weight: bold;
+            border-radius: 0.5rem;
+            color: black;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.1s, transform 0.1s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .game-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-drink  { background-color: cyan; }        .btn-drink:active  { background-color: darkcyan; }
+        .btn-eat    { background-color: yellow; }      .btn-eat:active    { background-color: gold; }
+        .btn-snack  { background-color: pink; }        .btn-snack:active  { background-color: hotpink; }
+        .btn-shower { background-color: lightblue; }   .btn-shower:active { background-color: steelblue; }
+        .btn-sleep  { background-color: lightgray; }   .btn-sleep:active  { background-color: gray; }
+        .btn-3c     { background-color: violet; }      .btn-3c:active     { background-color: darkviolet; }
+        .btn-sport  { background-color: orange; }      .btn-sport:active  { background-color: darkorange; }
+        .btn-read   { background-color: lightgreen; }  .btn-read:active   { background-color: forestgreen; }
+        
+        .btn-start, .btn-retry { background-color: lightgreen; }
+        .btn-start:active, .btn-retry:active { background-color: forestgreen; }
+        
+        .btn-ok { background-color: red; color: white; }
+        .btn-ok:active { background-color: darkred; }
+
+        /* 隱藏畫面區塊用的 class */
+        .hidden-screen {
+            display: none !important;
+        }
+
+        /* 模擬打字機文字風格 (狀態列) */
+        .status-font {
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <!-- ========================================== -->
+        <!-- 1. 開始畫面 -->
+        <!-- ========================================== -->
+        <div id="screen-start" class="absolute inset-0 flex flex-col items-center justify-center p-8">
+            <h1 class="text-5xl font-bold mb-6">健康電子雞</h1>
+            <div class="text-center text-lg whitespace-pre-wrap mb-10 text-gray-700 leading-relaxed">【遊戲規則】
+
+1. 每天早上 07:00 開始。
+2. 選擇你的行動，小雞會做出對應動作。
+3. 按下「睡覺」進入結算畫面。
+
+【行動消耗時間】
+● 不耗時：喝水 (+150cc)
+● 30分鐘：洗澡、吃飯、吃零食、使用3C
+● 1小時：運動、看書</div>
+            <button class="game-btn btn-start" onclick="startGame()">開始遊戲</button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. 遊戲主畫面 -->
+        <!-- ========================================== -->
+        <div id="screen-game" class="absolute inset-0 flex flex-col hidden-screen">
+            <!-- 狀態列 -->
+            <div class="mt-8 text-center status-font font-bold text-lg">
+                <p id="status-text">現在時間: 07:00  |  今日喝水量: 0 cc</p>
+                <p class="text-gray-400 mt-1">----------------------------------------</p>
+            </div>
+
+            <!-- 角色圖示區 -->
+            <div class="flex-grow flex items-center justify-center">
+                <div class="relative w-48 h-48 flex items-center justify-center">
+                    <img id="pet-img" src="chicken_idle.gif" alt="Pet" class="max-w-full max-h-full object-contain">
+                    <div id="pet-fallback" class="hidden-screen w-32 h-32 bg-[gold]"></div>
+                </div>
+            </div>
+
+            <!-- 按鈕區塊 -->
+            <div class="pb-10 flex flex-col items-center gap-4">
+                <div class="flex gap-4">
+                    <button class="game-btn btn-drink" onclick="doAction('drink')">喝水</button>
+                    <button class="game-btn btn-eat" onclick="doAction('eat')">吃飯</button>
+                    <button class="game-btn btn-snack" onclick="doAction('snack')">吃零食</button>
+                    <button class="game-btn btn-shower" onclick="doAction('shower')">洗澡</button>
+                </div>
+                <div class="flex gap-4">
+                    <button class="game-btn btn-sleep" onclick="doSleep()">睡覺</button>
+                    <button class="game-btn btn-3c" onclick="doAction('3c')">使用3C</button>
+                    <button class="game-btn btn-sport" onclick="doAction('sport')">運動</button>
+                    <button class="game-btn btn-read" onclick="doAction('read')">看書</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 3. 結算畫面 -->
+        <!-- ========================================== -->
+        <div id="screen-summary" class="absolute inset-0 flex flex-col items-center justify-center hidden-screen bg-white">
+            <h2 class="text-4xl font-bold text-blue-600 mb-6">本日生活結算</h2>
+            
+            <div class="relative w-32 h-32 mb-6 flex items-center justify-center">
+                <img id="summary-pet-img" src="chicken_sleep.gif" alt="Sleep" class="max-w-full max-h-full object-contain">
+                <div id="summary-pet-fallback" class="hidden-screen w-24 h-24 bg-[gold]"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-x-16 gap-y-3 text-lg mb-8 w-[400px]">
+                <div id="stat-eat" class="text-right">吃飯：0 次</div>
+                <div id="stat-water" class="text-left">喝水：0 cc</div>
+                
+                <div id="stat-snack" class="text-right">吃零食：0 次</div>
+                <div id="stat-3c" class="text-left">使用3C：0 次</div>
+                
+                <div id="stat-sport" class="text-right">運動：0 次</div>
+                <div id="stat-read" class="text-left">看書：0 次</div>
+                
+                <div id="stat-shower" class="text-right">洗澡：0 次</div>
+                <div id="stat-time" class="text-left">就寢時間：07:00</div>
+            </div>
+
+            <h3 class="text-2xl font-bold text-red-600 mb-2">【健康小提醒】</h3>
+            <p id="summary-feedback" class="text-xl font-bold text-black mb-8">今天也是健康的一天!</p>
+
+            <button class="game-btn btn-retry" onclick="resetGame()">再玩一次</button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 4. 警示彈出視窗 (覆蓋層) -->
+        <!-- ========================================== -->
+        <div id="screen-alert" class="absolute inset-0 flex items-center justify-center hidden-screen bg-white/50 backdrop-blur-sm z-50">
+            <div class="bg-white border-4 border-red-600 w-[400px] h-[200px] flex flex-col items-center justify-center p-4 shadow-2xl relative">
+                <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ 健康警示 ⚠️</h2>
+                <p id="alert-message" class="text-lg font-bold text-center mb-6 whitespace-pre-wrap">短時間內喝水超過 1500cc
+易有水中毒風險！</p>
+                <button class="game-btn btn-ok !w-32 !h-10 text-base" onclick="closeAlert()">知道了</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // 全域變數與資料設定
+        // ==========================================
+        const START_MINUTES = 7 * 60; // 420分鐘 (07:00)
+        let currentMinutes = START_MINUTES;
+        let consecutiveDrinkCount = 0;
+
+        let counters = {
+            drink: 0,
+            eat: 0,
+            snack: 0,
+            '3c': 0,
+            shower: 0,
+            read: 0,
+            sport: 0,
+            water_cc: 0
+        };
+
+        const IMG_ACTION = {
+            idle: "chicken_idle.gif",
+            sleep: "chicken_sleep.gif",
+            drink: "chicken_drink.gif",
+            eat: "chicken_eat.gif",
+            snack: "chicken_snack.gif",
+            shower: "chicken_shower.gif",
+            '3c': "chicken_3c.gif",
+            sport: "chicken_sport.gif",
+            read: "chicken_read.gif"
+        };
+
+        // ==========================================
+        // 畫面切換與圖片防呆處理
+        // ==========================================
+        function showScreen(screenId) {
+            document.getElementById('screen-start').classList.add('hidden-screen');
+            document.getElementById('screen-game').classList.add('hidden-screen');
+            document.getElementById('screen-summary').classList.add('hidden-screen');
+            // Alert是疊加上去的，所以在這不切換 alert
+            document.getElementById(screenId).classList.remove('hidden-screen');
+        }
+
+        function setPetImage(action, imgElementId = 'pet-img', fallbackElementId = 'pet-fallback') {
+            const img = document.getElementById(imgElementId);
+            const fallback = document.getElementById(fallbackElementId);
+            
+            img.classList.remove('hidden-screen');
+            fallback.classList.add('hidden-screen');
+            
+            // 設定圖片與錯誤處理(若圖片不存在則顯示金色方塊)
+            img.src = IMG_ACTION[action];
+            img.onerror = () => {
+                img.classList.add('hidden-screen');
+                fallback.classList.remove('hidden-screen');
+            };
+        }
+
+        function getTimeString() {
+            const h = Math.floor((currentMinutes / 60) % 24);
+            const m = currentMinutes % 60;
+            const dayPrefix = currentMinutes >= 1440 ? "隔日 " : "";
+            
+            const hStr = h.toString().padStart(2, '0');
+            const mStr = m.toString().padStart(2, '0');
+            return `${dayPrefix}${hStr}:${mStr}`;
+        }
+
+        function updateStatusText() {
+            const statusText = document.getElementById('status-text');
+            statusText.innerText = `現在時間: ${getTimeString()}  |  今日喝水量: ${counters.water_cc} cc`;
+        }
+
+        // ==========================================
+        // 遊戲流程控制
+        // ==========================================
+        function startGame() {
+            showScreen('screen-game');
+            setPetImage('idle');
+            updateStatusText();
+        }
+
+        function resetGame() {
+            currentMinutes = START_MINUTES;
+            consecutiveDrinkCount = 0;
+            for (let key in counters) {
+                counters[key] = 0;
+            }
+            showScreen('screen-start');
+        }
+
+        function doAction(actionType) {
+            setPetImage(actionType);
+            let timeCost = 0;
+
+            if (actionType === 'drink') {
+                // 水中毒機制
+                if (consecutiveDrinkCount >= 9) {
+                    document.getElementById('screen-alert').classList.remove('hidden-screen');
+                    consecutiveDrinkCount = 10; // 鎖定狀態
+                    return; // 直接結束，不加 cc 數和次數
+                }
+                
+                counters.drink++;
+                counters.water_cc += 150;
+                consecutiveDrinkCount++;
+                timeCost = 0;
+            } else {
+                // 其他動作會解鎖連續喝水計數
+                consecutiveDrinkCount = 0;
+
+                if (['eat', 'snack', '3c', 'shower'].includes(actionType)) {
+                    counters[actionType]++;
+                    timeCost = 30;
+                } else if (['sport', 'read'].includes(actionType)) {
+                    counters[actionType]++;
+                    timeCost = 60;
+                }
+            }
+
+            currentMinutes += timeCost;
+            updateStatusText();
+        }
+
+        function closeAlert() {
+            document.getElementById('screen-alert').classList.add('hidden-screen');
+        }
+
+        // ==========================================
+        // 結算與評語邏輯
+        // ==========================================
+        function getFeedbackMessage() {
+            if (currentMinutes > 1440) return "不要熬夜，早點睡覺！";
+            if (currentMinutes < 1380) return "7點才起床，現在睡會睡太久哦！";
+            if (counters.water_cc < 1500) return "記得多喝一點水哦！";
+            if (counters.water_cc > 4000) return "一天喝水不宜超過4000cc";
+            if (counters.eat < 3) return "一日三餐能維持生理時鐘穩定！";
+            if (counters.eat >= 4 && counters.eat <= 6) return "少量多餐可以穩定血糖，減輕腸胃負擔！";
+            if (counters.eat > 6) return "不能吃太多哦！";
+            if (counters.snack > 2) return "零食很好吃，但注意不要吃太多！";
+            if (counters['3c'] > 6) return "讓眼睛多多休息，去戶外走走吧！";
+            if (counters.sport === 0) return "多運動有益身體健康！";
+            
+            return "今天也是健康的一天!";
+        }
+
+        function doSleep() {
+            showScreen('screen-summary');
+            setPetImage('sleep', 'summary-pet-img', 'summary-pet-fallback');
+            
+            // 填寫結算數據
+            document.getElementById('stat-eat').innerText = `吃飯：${counters.eat} 次`;
+            document.getElementById('stat-water').innerText = `喝水：${counters.water_cc} cc`;
+            document.getElementById('stat-snack').innerText = `吃零食：${counters.snack} 次`;
+            document.getElementById('stat-3c').innerText = `使用3C：${counters['3c']} 次`;
+            document.getElementById('stat-sport').innerText = `運動：${counters.sport} 次`;
+            document.getElementById('stat-read').innerText = `看書：${counters.read} 次`;
+            document.getElementById('stat-shower').innerText = `洗澡：${counters.shower} 次`;
+            document.getElementById('stat-time').innerText = `就寢時間：${getTimeString()}`;
+
+            // 顯示健康小提醒
+            document.getElementById('summary-feedback').innerText = getFeedbackMessage();
+        }
+        
+        // 初始載入強制更新圖片防呆（預先觸發圖示讀取）
+        setPetImage('idle');
+        setPetImage('sleep', 'summary-pet-img', 'summary-pet-fallback');
+
+    </script>
+</body>
+</html>
