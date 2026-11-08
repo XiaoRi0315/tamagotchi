@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健康電子雞</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -11,19 +11,31 @@
       user-select: none;
       -webkit-user-select: none;
       font-family: Arial, "Microsoft JhengHei", sans-serif;
+      touch-action: manipulation;
+    }
+    .canvas-container {
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 4 / 3;
+      max-height: calc(100vh - 2rem);
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     #game-canvas {
-      width: 800px;
-      height: 600px;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
       background-color: white;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      touch-action: manipulation;
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center p-2 sm:p-4 overflow-hidden">
 
-  <!-- 800 x 600 遊戲視窗畫布 (完全等同 wn.setup(800, 600) 與 wn.bgcolor("white")) -->
-  <div class="flex flex-col items-center">
+  <!-- 響應式 4:3 遊戲舞台容器 (內部維持 800x600 邏輯解析度) -->
+  <div class="canvas-container">
     <canvas id="game-canvas" width="800" height="600" class="border border-gray-300 rounded-lg cursor-pointer"></canvas>
   </div>
 
@@ -447,20 +459,34 @@
     // 9. 事件處理 (滑鼠/觸控點擊與坐標判定)
     // ==========================================
 
-    canvas.addEventListener("click", (e) => {
+    function onPointerDown(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
 
-      const clickCanvasX = (e.clientX - rect.left) * scaleX;
-      const clickCanvasY = (e.clientY - rect.top) * scaleY;
+      const clickCanvasX = (clientX - rect.left) * scaleX;
+      const clickCanvasY = (clientY - rect.top) * scaleY;
 
       // 轉換為 Turtle 座標系
       const turtleX = clickCanvasX - 400;
       const turtleY = 300 - clickCanvasY;
 
       handleClick(turtleX, turtleY);
+    }
+
+    // 支援滑鼠點擊
+    canvas.addEventListener("click", (e) => {
+      onPointerDown(e.clientX, e.clientY);
     });
+
+    // 支援行動裝置觸控 (避免觸控與點擊延遲或重覆觸發)
+    canvas.addEventListener("touchstart", (e) => {
+      if (e.touches && e.touches.length > 0) {
+        const touch = e.touches[0];
+        onPointerDown(touch.clientX, touch.clientY);
+        e.preventDefault(); // 防止雙點擊縮放與多餘滾動
+      }
+    }, { passive: false });
 
     function handleClick(x, y) {
       // --- 情境 1: 在開始畫面 ---
