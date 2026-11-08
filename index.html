@@ -1,351 +1,539 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>健康電子雞</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            background-color: #f3f4f6; /* 淺灰色背景，讓中央白色遊戲區更突出 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            font-family: 'Inter', sans-serif;
-        }
-
-        /* 遊戲容器：固定 800x600 尺寸與白底 */
-        #game-container {
-            width: 800px;
-            height: 600px;
-            background-color: white;
-            position: relative;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            border-radius: 1rem;
-            overflow: hidden;
-            max-width: 100vw; /* 避免在極小螢幕上超出邊界 */
-        }
-
-        /* 按鈕基礎與顏色設定 (一般顏色 與 active按下去的深色) */
-        .game-btn {
-            width: 140px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.125rem; /* 18px */
-            font-weight: bold;
-            border-radius: 0.5rem;
-            color: black;
-            cursor: pointer;
-            user-select: none;
-            transition: background-color 0.1s, transform 0.1s;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-
-        .game-btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        }
-
-        .btn-drink  { background-color: cyan; }        .btn-drink:active  { background-color: darkcyan; }
-        .btn-eat    { background-color: yellow; }      .btn-eat:active    { background-color: gold; }
-        .btn-snack  { background-color: pink; }        .btn-snack:active  { background-color: hotpink; }
-        .btn-shower { background-color: lightblue; }   .btn-shower:active { background-color: steelblue; }
-        .btn-sleep  { background-color: lightgray; }   .btn-sleep:active  { background-color: gray; }
-        .btn-3c     { background-color: violet; }      .btn-3c:active     { background-color: darkviolet; }
-        .btn-sport  { background-color: orange; }      .btn-sport:active  { background-color: darkorange; }
-        .btn-read   { background-color: lightgreen; }  .btn-read:active   { background-color: forestgreen; }
-        
-        .btn-start, .btn-retry { background-color: lightgreen; }
-        .btn-start:active, .btn-retry:active { background-color: forestgreen; }
-        
-        .btn-ok { background-color: red; color: white; }
-        .btn-ok:active { background-color: darkred; }
-
-        /* 隱藏畫面區塊用的 class */
-        .hidden-screen {
-            display: none !important;
-        }
-
-        /* 模擬打字機文字風格 (狀態列) */
-        .status-font {
-            font-family: 'Courier New', Courier, monospace;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>健康電子雞</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #f3f4f6;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+    }
+    #game-canvas {
+      width: 800px;
+      height: 600px;
+      background-color: white;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+  </style>
 </head>
-<body>
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div id="game-container">
-        
-        <!-- ========================================== -->
-        <!-- 1. 開始畫面 -->
-        <!-- ========================================== -->
-        <div id="screen-start" class="absolute inset-0 flex flex-col items-center justify-center p-8">
-            <h1 class="text-5xl font-bold mb-6">健康電子雞</h1>
-            <div class="text-center text-lg whitespace-pre-wrap mb-10 text-gray-700 leading-relaxed">【遊戲規則】
+  <!-- 800 x 600 遊戲視窗畫布 (完全等同 wn.setup(800, 600) 與 wn.bgcolor("white")) -->
+  <div class="flex flex-col items-center">
+    <canvas id="game-canvas" width="800" height="600" class="border border-gray-300 rounded-lg cursor-pointer"></canvas>
+  </div>
 
-1. 每天早上 07:00 開始。
-2. 選擇你的行動，小雞會做出對應動作。
-3. 按下「睡覺」進入結算畫面。
+  <script>
+    // ==========================================
+    // 1. 圖片檔案設定區 (與 Python 原檔完全一致)
+    // ==========================================
+    // 請將圖檔與此 html 放於同目錄，或直接在此修改為您的圖片路徑/網址
+    const IMG_IDLE = "chicken_idle.gif";       // 待機狀態 (沒做事的時候)
+    const IMG_SLEEP = "chicken_sleep.gif";     // 睡覺狀態 (結算畫面用)
 
-【行動消耗時間】
-● 不耗時：喝水 (+150cc)
-● 30分鐘：洗澡、吃飯、吃零食、使用3C
-● 1小時：運動、看書</div>
-            <button class="game-btn btn-start" onclick="startGame()">開始遊戲</button>
-        </div>
+    // 使用物件將「動作代號」對應到「圖片檔名」
+    const IMG_ACTION = {
+      "drink":  "chicken_drink.gif",   // 喝水
+      "eat":    "chicken_eat.gif",     // 吃飯
+      "snack":  "chicken_snack.gif",   // 吃零食
+      "shower": "chicken_shower.gif",  // 洗澡
+      "3c":     "chicken_3c.gif",      // 使用3C
+      "sport":  "chicken_sport.gif",   // 運動
+      "read":   "chicken_read.gif"     // 看書
+    };
 
-        <!-- ========================================== -->
-        <!-- 2. 遊戲主畫面 -->
-        <!-- ========================================== -->
-        <div id="screen-game" class="absolute inset-0 flex flex-col hidden-screen">
-            <!-- 狀態列 -->
-            <div class="mt-8 text-center status-font font-bold text-lg">
-                <p id="status-text">現在時間: 07:00  |  今日喝水量: 0 cc</p>
-                <p class="text-gray-400 mt-1">----------------------------------------</p>
-            </div>
+    // ==========================================
+    // 2. 按鈕顏色設定 (一般顏色 : 按下顏色)
+    // ==========================================
+    const BUTTON_COLORS = {
+      "drink":  ["cyan", "darkcyan"],
+      "eat":    ["yellow", "gold"],
+      "snack":  ["pink", "hotpink"],
+      "shower": ["lightblue", "steelblue"],
+      "sleep":  ["lightgray", "gray"],
+      "3c":     ["violet", "darkviolet"],
+      "sport":  ["orange", "darkorange"],
+      "read":   ["lightgreen", "forestgreen"],
+      "start":  ["lightgreen", "forestgreen"],
+      "retry":  ["lightgreen", "forestgreen"],
+      "ok":     ["red", "darkred"]
+    };
 
-            <!-- 角色圖示區 -->
-            <div class="flex-grow flex items-center justify-center">
-                <div class="relative w-48 h-48 flex items-center justify-center">
-                    <img id="pet-img" src="chicken_idle.gif" alt="Pet" class="max-w-full max-h-full object-contain">
-                    <div id="pet-fallback" class="hidden-screen w-32 h-32 bg-[gold]"></div>
-                </div>
-            </div>
+    // ==========================================
+    // 3. 圖片快取與防呆機制 (模擬 wn.addshape 與 getshapes)
+    // ==========================================
+    const loadedImages = {}; // 存放載入成功的 Image 物件
 
-            <!-- 按鈕區塊 -->
-            <div class="pb-10 flex flex-col items-center gap-4">
-                <div class="flex gap-4">
-                    <button class="game-btn btn-drink" onclick="doAction('drink')">喝水</button>
-                    <button class="game-btn btn-eat" onclick="doAction('eat')">吃飯</button>
-                    <button class="game-btn btn-snack" onclick="doAction('snack')">吃零食</button>
-                    <button class="game-btn btn-shower" onclick="doAction('shower')">洗澡</button>
-                </div>
-                <div class="flex gap-4">
-                    <button class="game-btn btn-sleep" onclick="doSleep()">睡覺</button>
-                    <button class="game-btn btn-3c" onclick="doAction('3c')">使用3C</button>
-                    <button class="game-btn btn-sport" onclick="doAction('sport')">運動</button>
-                    <button class="game-btn btn-read" onclick="doAction('read')">看書</button>
-                </div>
-            </div>
-        </div>
+    function registerImageSafe(key, src) {
+      if (!src) return;
+      const img = new Image();
+      img.onload = () => {
+        loadedImages[key] = img;
+        console.log(`成功載入圖片: ${src}`);
+        render(); // 圖片載入完成後重新刷新畫面
+      };
+      img.onerror = () => {
+        // 找不到圖片時不會崩潰，使用金色預設方塊
+        console.log(`找不到圖片: ${src} (將使用預設方塊)`);
+      };
+      img.src = src;
+    }
 
-        <!-- ========================================== -->
-        <!-- 3. 結算畫面 -->
-        <!-- ========================================== -->
-        <div id="screen-summary" class="absolute inset-0 flex flex-col items-center justify-center hidden-screen bg-white">
-            <h2 class="text-4xl font-bold text-blue-600 mb-6">本日生活結算</h2>
-            
-            <div class="relative w-32 h-32 mb-6 flex items-center justify-center">
-                <img id="summary-pet-img" src="chicken_sleep.gif" alt="Sleep" class="max-w-full max-h-full object-contain">
-                <div id="summary-pet-fallback" class="hidden-screen w-24 h-24 bg-[gold]"></div>
-            </div>
+    // 初始化註冊所有圖片
+    registerImageSafe("idle", IMG_IDLE);
+    registerImageSafe("sleep", IMG_SLEEP);
+    for (const [actionKey, src] of Object.entries(IMG_ACTION)) {
+      registerImageSafe(actionKey, src);
+    }
 
-            <div class="grid grid-cols-2 gap-x-16 gap-y-3 text-lg mb-8 w-[400px]">
-                <div id="stat-eat" class="text-right">吃飯：0 次</div>
-                <div id="stat-water" class="text-left">喝水：0 cc</div>
-                
-                <div id="stat-snack" class="text-right">吃零食：0 次</div>
-                <div id="stat-3c" class="text-left">使用3C：0 次</div>
-                
-                <div id="stat-sport" class="text-right">運動：0 次</div>
-                <div id="stat-read" class="text-left">看書：0 次</div>
-                
-                <div id="stat-shower" class="text-right">洗澡：0 次</div>
-                <div id="stat-time" class="text-left">就寢時間：07:00</div>
-            </div>
+    // ==========================================
+    // 4. 座標轉換系統 (Turtle 坐標系 -> Canvas 坐標系)
+    // ==========================================
+    // Turtle: (0,0) 為正中央，向右為正 X，向上為正 Y
+    // Canvas: (0,0) 為左上角，向右為正 X，向下為正 Y
+    const canvas = document.getElementById("game-canvas");
+    const ctx = canvas.getContext("2d");
 
-            <h3 class="text-2xl font-bold text-red-600 mb-2">【健康小提醒】</h3>
-            <p id="summary-feedback" class="text-xl font-bold text-black mb-8">今天也是健康的一天!</p>
+    function toCanvasX(turtleX) {
+      return turtleX + 400;
+    }
 
-            <button class="game-btn btn-retry" onclick="resetGame()">再玩一次</button>
-        </div>
+    function toCanvasY(turtleY) {
+      return 300 - turtleY;
+    }
 
-        <!-- ========================================== -->
-        <!-- 4. 警示彈出視窗 (覆蓋層) -->
-        <!-- ========================================== -->
-        <div id="screen-alert" class="absolute inset-0 flex items-center justify-center hidden-screen bg-white/50 backdrop-blur-sm z-50">
-            <div class="bg-white border-4 border-red-600 w-[400px] h-[200px] flex flex-col items-center justify-center p-4 shadow-2xl relative">
-                <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ 健康警示 ⚠️</h2>
-                <p id="alert-message" class="text-lg font-bold text-center mb-6 whitespace-pre-wrap">短時間內喝水超過 1500cc
-易有水中毒風險！</p>
-                <button class="game-btn btn-ok !w-32 !h-10 text-base" onclick="closeAlert()">知道了</button>
-            </div>
-        </div>
+    // ==========================================
+    // 5. 遊戲狀態與計數器
+    // ==========================================
+    const START_MINUTES = 7 * 60; // 07:00 (420 分鐘)
+    let current_minutes = START_MINUTES;
+    let consecutive_drink_count = 0;
+    let game_state = "start"; // "start", "playing", "summary", "alert"
+    let current_action = "idle";
+    let alertMessage = "";
+    let pressedButtonKey = null; // 當前正被按下的按鈕 (用於點擊反饋深色動畫)
 
-    </div>
+    let counters = {
+      "drink": 0,
+      "eat": 0,
+      "snack": 0,
+      "3c": 0,
+      "shower": 0,
+      "read": 0,
+      "sport": 0,
+      "water_cc": 0
+    };
 
-    <script>
-        // ==========================================
-        // 全域變數與資料設定
-        // ==========================================
-        const START_MINUTES = 7 * 60; // 420分鐘 (07:00)
-        let currentMinutes = START_MINUTES;
-        let consecutiveDrinkCount = 0;
+    // ==========================================
+    // 6. 繪圖輔助函數 (對應 draw_rect, draw_button 等)
+    // ==========================================
 
-        let counters = {
-            drink: 0,
-            eat: 0,
-            snack: 0,
-            '3c': 0,
-            shower: 0,
-            read: 0,
-            sport: 0,
-            water_cc: 0
-        };
+    function drawRect(turtleX, turtleY, w, h, color, fill = true) {
+      const cx = toCanvasX(turtleX);
+      const cy = toCanvasY(turtleY);
+      ctx.beginPath();
+      ctx.rect(cx, cy, w, h);
+      if (fill) {
+        ctx.fillStyle = color;
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    }
 
-        const IMG_ACTION = {
-            idle: "chicken_idle.gif",
-            sleep: "chicken_sleep.gif",
-            drink: "chicken_drink.gif",
-            eat: "chicken_eat.gif",
-            snack: "chicken_snack.gif",
-            shower: "chicken_shower.gif",
-            '3c': "chicken_3c.gif",
-            sport: "chicken_sport.gif",
-            read: "chicken_read.gif"
-        };
+    function drawButton(turtleX, turtleY, text, color, w = 140, h = 50) {
+      // 1. 畫出按鈕底色
+      drawRect(turtleX, turtleY, w, h, color, true);
 
-        // ==========================================
-        // 畫面切換與圖片防呆處理
-        // ==========================================
-        function showScreen(screenId) {
-            document.getElementById('screen-start').classList.add('hidden-screen');
-            document.getElementById('screen-game').classList.add('hidden-screen');
-            document.getElementById('screen-summary').classList.add('hidden-screen');
-            // Alert是疊加上去的，所以在這不切換 alert
-            document.getElementById(screenId).classList.remove('hidden-screen');
+      // 2. 寫上按鈕文字 (置中)
+      ctx.fillStyle = "black";
+      ctx.font = "bold 12pt Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const textX = toCanvasX(turtleX + w / 2);
+      const textY = toCanvasY(turtleY - h / 2);
+      ctx.fillText(text, textX, textY);
+    }
+
+    // 繪製小雞角色：若有圖且成功載入就畫圖，否則顯示金色方塊 (完全還原原程式防呆)
+    function drawPlayer(turtleX, turtleY, actionKey) {
+      const img = loadedImages[actionKey];
+      const cx = toCanvasX(turtleX);
+      const cy = toCanvasY(turtleY);
+
+      if (img && img.complete && img.naturalWidth !== 0) {
+        // 置中繪製圖片
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+      } else {
+        // 原 Python 預設形狀：square, 顏色 gold (若找不到圖片時顯示金色方塊)
+        const size = 50;
+        ctx.fillStyle = "gold";
+        ctx.fillRect(cx - size / 2, cy - size / 2, size, size);
+      }
+    }
+
+    function getTimeString() {
+      const total_min = current_minutes;
+      const h = Math.floor(total_min / 60) % 24;
+      const m = total_min % 60;
+      const day_prefix = total_min >= 24 * 60 ? "隔日 " : "";
+      return `${day_prefix}${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    // ==========================================
+    // 7. 畫面繪製邏輯 (各場景繪製)
+    // ==========================================
+
+    // --- 開始畫面 ---
+    function drawStartScreen() {
+      // 標題 (Turtle: (0, 200))
+      ctx.fillStyle = "black";
+      ctx.font = "bold 30pt Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("健康電子雞", toCanvasX(0), toCanvasY(200));
+
+      // 規則內容：精確配置於 y = 120 至 y = -100 區間，與標題 (200) 及按鈕 (-150) 保持完美間距
+      const rules = [
+        "【遊戲規則】",
+        "",
+        "1. 每天早上 07:00 開始。",
+        "2. 選擇你的行動，小雞會做出對應動作。",
+        "3. 按下「睡覺」進入結算畫面。",
+        "",
+        "【行動消耗時間】",
+        "● 不耗時：喝水 (+150cc)",
+        "● 30分鐘：洗澡、吃飯、吃零食、使用3C",
+        "● 1小時：運動、看書"
+      ];
+
+      ctx.font = "14pt Arial";
+      ctx.fillStyle = "black";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      
+      let startTurtleY = 120;
+      const lineHeight = 24;
+      for (const line of rules) {
+        if (line !== "") {
+          ctx.fillText(line, toCanvasX(0), toCanvasY(startTurtleY));
+        }
+        startTurtleY -= lineHeight;
+      }
+
+      // 「開始遊戲」按鈕 (x: -75, y: -150, 寬: 150, 高: 50)
+      const btnColor = (pressedButtonKey === "start") ? BUTTON_COLORS["start"][1] : BUTTON_COLORS["start"][0];
+      drawButton(-75, -150, "開始遊戲", btnColor, 150, 50);
+    }
+
+    // --- 主遊戲介面 ---
+    function drawGameInterface() {
+      // 繪製角色 (0, 50)
+      drawPlayer(0, 50, current_action);
+
+      // 上方時間與喝水量狀態
+      const timeStr = getTimeString();
+      const statusText = `現在時間: ${timeStr}  |  今日喝水量: ${counters['water_cc']} cc`;
+      ctx.font = "bold 16pt Courier";
+      ctx.fillStyle = "black";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(statusText, toCanvasX(0), toCanvasY(180));
+      ctx.fillText("----------------------------------------", toCanvasX(0), toCanvasY(160));
+
+      // 取得按鈕顏色狀態 (判斷是否處於按下狀態)
+      const getC = (key) => (pressedButtonKey === key ? BUTTON_COLORS[key][1] : BUTTON_COLORS[key][0]);
+
+      // 第一排按鈕 (y 座標 -120)
+      drawButton(-310, -120, "喝水",   getC("drink"));
+      drawButton(-150, -120, "吃飯",   getC("eat"));
+      drawButton(10,   -120, "吃零食", getC("snack"));
+      drawButton(170,  -120, "洗澡",   getC("shower"));
+
+      // 第二排按鈕 (y 座標 -200)
+      drawButton(-310, -200, "睡覺",   getC("sleep"));
+      drawButton(-150, -200, "使用3C", getC("3c"));
+      drawButton(10,   -200, "運動",   getC("sport"));
+      drawButton(170,  -200, "看書",   getC("read"));
+    }
+
+    // --- 警示視窗 ---
+    function drawAlertPopup() {
+      // 白底紅框 (x: -200, y: 100, 寬: 400, 高: 200)
+      drawRect(-200, 100, 400, 200, "white", true);
+      drawRect(-200, 100, 400, 200, "red", false);
+
+      // 警告標題
+      ctx.fillStyle = "red";
+      ctx.font = "bold 20pt Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("⚠️ 健康警示 ⚠️", toCanvasX(0), toCanvasY(50));
+
+      // 警告內容文字
+      ctx.fillStyle = "black";
+      ctx.font = "bold 14pt Arial";
+      const lines = alertMessage.split("\n");
+      ctx.fillText(lines[0], toCanvasX(0), toCanvasY(10));
+      if (lines[1]) {
+        ctx.fillText(lines[1], toCanvasX(0), toCanvasY(-15));
+      }
+
+      // 「知道了」按鈕 (x: -70, y: -60, 寬: 140, 高: 50)
+      const okColor = (pressedButtonKey === "ok") ? BUTTON_COLORS["ok"][1] : BUTTON_COLORS["ok"][0];
+      drawButton(-70, -60, "知道了", okColor, 140, 50);
+    }
+
+    // --- 結算與評語邏輯 (100% 依原程式優先級順序) ---
+    function getFeedbackMessage() {
+      if (current_minutes > 1440) {
+        return "不要熬夜，早點睡覺！";
+      } else if (current_minutes < 1380) {
+        return "7點才起床，現在睡會睡太久哦！";
+      } else if (counters['water_cc'] < 1500) {
+        return "記得多喝一點水哦！";
+      } else if (counters['water_cc'] > 4000) {
+        return "一天喝水不宜超過4000cc";
+      } else if (counters['eat'] < 3) {
+        return "一日三餐能維持生理時鐘穩定！";
+      } else if (counters['eat'] >= 4 && counters['eat'] <= 6) {
+        return "少量多餐可以穩定血糖，減輕腸胃負擔！";
+      } else if (counters['eat'] > 6) {
+        return "不能吃太多哦！";
+      } else if (counters['snack'] > 2) {
+        return "零食很好吃，但注意不要吃太多！";
+      } else if (counters['3c'] > 6) {
+        return "讓眼睛多多休息，去戶外走走吧！";
+      } else if (counters['sport'] === 0) {
+        return "多運動有益身體健康！";
+      } else {
+        return "今天也是健康的一天!";
+      }
+    }
+
+    // --- 結算畫面 ---
+    function drawSummaryScreen() {
+      // 睡覺圖片 (0, 200)
+      drawPlayer(0, 200, "sleep");
+
+      // 結算標題 (0, 100)
+      ctx.fillStyle = "blue";
+      ctx.font = "bold 26pt Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("本日生活結算", toCanvasX(0), toCanvasY(100));
+
+      // 數據統計列表 (兩欄式排版)
+      const statsList = [
+        `吃飯：${counters['eat']} 次`, `喝水：${counters['water_cc']} cc`,
+        `吃零食：${counters['snack']} 次`, `使用3C：${counters['3c']} 次`,
+        `運動：${counters['sport']} 次`, `看書：${counters['read']} 次`,
+        `洗澡：${counters['shower']} 次`, `就寢時間：${getTimeString()}`
+      ];
+
+      ctx.fillStyle = "black";
+      ctx.font = "14pt Arial";
+      const startY = 50;
+      statsList.forEach((text, i) => {
+        const colX = (i % 2 === 0) ? -100 : 100;
+        const rowY = startY - Math.floor(i / 2) * 30;
+        ctx.fillText(text, toCanvasX(colX), toCanvasY(rowY));
+      });
+
+      // 健康提醒
+      ctx.fillStyle = "red";
+      ctx.font = "bold 16pt Arial";
+      ctx.fillText("【健康小提醒】", toCanvasX(0), toCanvasY(-80));
+
+      const feedback = getFeedbackMessage();
+      ctx.fillStyle = "black";
+      ctx.font = "bold 18pt Arial";
+      ctx.fillText(feedback, toCanvasX(0), toCanvasY(-120));
+
+      // 「再玩一次」按鈕 (x: -75, y: -180, 寬: 150, 高: 50)
+      const retryColor = (pressedButtonKey === "retry") ? BUTTON_COLORS["retry"][1] : BUTTON_COLORS["retry"][0];
+      drawButton(-75, -180, "再玩一次", retryColor, 150, 50);
+    }
+
+    // 主畫面渲染分派
+    function render() {
+      ctx.clearRect(0, 0, 800, 600);
+
+      if (game_state === "start") {
+        drawStartScreen();
+      } else if (game_state === "playing") {
+        drawGameInterface();
+      } else if (game_state === "summary") {
+        drawSummaryScreen();
+      } else if (game_state === "alert") {
+        drawGameInterface(); // 底層維持遊戲畫面
+        drawAlertPopup();    // 頂層覆蓋警示視窗
+      }
+    }
+
+    // ==========================================
+    // 8. 遊戲控制邏輯 (含水中毒機制)
+    // ==========================================
+
+    function resetGame() {
+      current_minutes = START_MINUTES;
+      consecutive_drink_count = 0;
+      current_action = "idle";
+      for (const key in counters) {
+        counters[key] = 0;
+      }
+      game_state = "start";
+      render();
+    }
+
+    function addAction(actionType) {
+      // 1. 切換圖片動作狀態
+      current_action = actionType;
+
+      let timeCost = 0;
+
+      if (actionType === "drink") {
+        // --- 水中毒檢查機制 ---
+        if (consecutive_drink_count >= 9) {
+          alertMessage = "短時間內喝水超過 1500cc\n易有水中毒風險！";
+          consecutive_drink_count = 10; // 強制設為 10 保持鎖定狀態
+          game_state = "alert";
+          render();
+          return;
         }
 
-        function setPetImage(action, imgElementId = 'pet-img', fallbackElementId = 'pet-fallback') {
-            const img = document.getElementById(imgElementId);
-            const fallback = document.getElementById(fallbackElementId);
-            
-            img.classList.remove('hidden-screen');
-            fallback.classList.add('hidden-screen');
-            
-            // 設定圖片與錯誤處理(若圖片不存在則顯示金色方塊)
-            img.src = IMG_ACTION[action];
-            img.onerror = () => {
-                img.classList.add('hidden-screen');
-                fallback.classList.remove('hidden-screen');
-            };
+        // 未滿 10 次，正常喝水
+        counters['drink'] += 1;
+        counters['water_cc'] += 150;
+        consecutive_drink_count += 1;
+        timeCost = 0; // 喝水不耗時
+      } else {
+        // 執行非喝水動作：解除水中毒鎖定
+        consecutive_drink_count = 0;
+
+        if (["eat", "snack", "3c", "shower"].includes(actionType)) {
+          counters[actionType] += 1;
+          timeCost = 30; // 30分鐘
+        } else if (["sport", "read"].includes(actionType)) {
+          counters[actionType] += 1;
+          timeCost = 60; // 1小時
+        }
+      }
+
+      current_minutes += timeCost;
+      render();
+    }
+
+    // 按鈕點擊動畫：變深色 0.1 秒後還原
+    function animateClick(actionKey, callback) {
+      pressedButtonKey = actionKey;
+      render();
+      setTimeout(() => {
+        pressedButtonKey = null;
+        render();
+        if (callback) callback();
+      }, 100);
+    }
+
+    // ==========================================
+    // 9. 事件處理 (滑鼠/觸控點擊與坐標判定)
+    // ==========================================
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      const clickCanvasX = (e.clientX - rect.left) * scaleX;
+      const clickCanvasY = (e.clientY - rect.top) * scaleY;
+
+      // 轉換為 Turtle 座標系
+      const turtleX = clickCanvasX - 400;
+      const turtleY = 300 - clickCanvasY;
+
+      handleClick(turtleX, turtleY);
+    });
+
+    function handleClick(x, y) {
+      // --- 情境 1: 在開始畫面 ---
+      if (game_state === "start") {
+        // 開始按鈕範圍: x 在 -75 ~ 75, y 在 -200 ~ -150
+        if (x > -75 && x < 75 && y > -200 && y < -150) {
+          animateClick("start", () => {
+            game_state = "playing";
+            current_action = "idle";
+            render();
+          });
+        }
+        return;
+      }
+
+      // --- 情境 2: 在結算畫面 ---
+      if (game_state === "summary") {
+        // 再玩一次按鈕範圍: x 在 -75 ~ 75, y 在 -230 ~ -180
+        if (x > -75 && x < 75 && y > -230 && y < -180) {
+          animateClick("retry", () => {
+            resetGame();
+          });
+        }
+        return;
+      }
+
+      // --- 情境 3: 警示視窗 (水中毒警告) ---
+      if (game_state === "alert") {
+        // 知道了按鈕範圍: x 在 -70 ~ 70, y 在 -110 ~ -60
+        if (x > -70 && x < 70 && y > -110 && y < -60) {
+          animateClick("ok", () => {
+            game_state = "playing";
+            render();
+          });
+        }
+        return;
+      }
+
+      // --- 情境 4: 遊戲進行中 ---
+      if (game_state === "playing") {
+        let targetKey = null;
+
+        // 第一排按鈕 (-170 < y < -120)
+        if (y > -170 && y < -120) {
+          if (x > -310 && x < -170) targetKey = "drink";
+          else if (x > -150 && x < -10) targetKey = "eat";
+          else if (x > 10 && x < 150) targetKey = "snack";
+          else if (x > 170 && x < 310) targetKey = "shower";
+        }
+        // 第二排按鈕 (-250 < y < -200)
+        else if (y > -250 && y < -200) {
+          if (x > -310 && x < -170) targetKey = "sleep";
+          else if (x > -150 && x < -10) targetKey = "3c";
+          else if (x > 10 && x < 150) targetKey = "sport";
+          else if (x > 170 && x < 310) targetKey = "read";
         }
 
-        function getTimeString() {
-            const h = Math.floor((currentMinutes / 60) % 24);
-            const m = currentMinutes % 60;
-            const dayPrefix = currentMinutes >= 1440 ? "隔日 " : "";
-            
-            const hStr = h.toString().padStart(2, '0');
-            const mStr = m.toString().padStart(2, '0');
-            return `${dayPrefix}${hStr}:${mStr}`;
-        }
-
-        function updateStatusText() {
-            const statusText = document.getElementById('status-text');
-            statusText.innerText = `現在時間: ${getTimeString()}  |  今日喝水量: ${counters.water_cc} cc`;
-        }
-
-        // ==========================================
-        // 遊戲流程控制
-        // ==========================================
-        function startGame() {
-            showScreen('screen-game');
-            setPetImage('idle');
-            updateStatusText();
-        }
-
-        function resetGame() {
-            currentMinutes = START_MINUTES;
-            consecutiveDrinkCount = 0;
-            for (let key in counters) {
-                counters[key] = 0;
-            }
-            showScreen('screen-start');
-        }
-
-        function doAction(actionType) {
-            setPetImage(actionType);
-            let timeCost = 0;
-
-            if (actionType === 'drink') {
-                // 水中毒機制
-                if (consecutiveDrinkCount >= 9) {
-                    document.getElementById('screen-alert').classList.remove('hidden-screen');
-                    consecutiveDrinkCount = 10; // 鎖定狀態
-                    return; // 直接結束，不加 cc 數和次數
-                }
-                
-                counters.drink++;
-                counters.water_cc += 150;
-                consecutiveDrinkCount++;
-                timeCost = 0;
+        if (targetKey) {
+          animateClick(targetKey, () => {
+            if (targetKey === "sleep") {
+              current_action = "sleep";
+              game_state = "summary";
+              render();
             } else {
-                // 其他動作會解鎖連續喝水計數
-                consecutiveDrinkCount = 0;
-
-                if (['eat', 'snack', '3c', 'shower'].includes(actionType)) {
-                    counters[actionType]++;
-                    timeCost = 30;
-                } else if (['sport', 'read'].includes(actionType)) {
-                    counters[actionType]++;
-                    timeCost = 60;
-                }
+              addAction(targetKey);
             }
-
-            currentMinutes += timeCost;
-            updateStatusText();
+          });
         }
+      }
+    }
 
-        function closeAlert() {
-            document.getElementById('screen-alert').classList.add('hidden-screen');
-        }
-
-        // ==========================================
-        // 結算與評語邏輯
-        // ==========================================
-        function getFeedbackMessage() {
-            if (currentMinutes > 1440) return "不要熬夜，早點睡覺！";
-            if (currentMinutes < 1380) return "7點才起床，現在睡會睡太久哦！";
-            if (counters.water_cc < 1500) return "記得多喝一點水哦！";
-            if (counters.water_cc > 4000) return "一天喝水不宜超過4000cc";
-            if (counters.eat < 3) return "一日三餐能維持生理時鐘穩定！";
-            if (counters.eat >= 4 && counters.eat <= 6) return "少量多餐可以穩定血糖，減輕腸胃負擔！";
-            if (counters.eat > 6) return "不能吃太多哦！";
-            if (counters.snack > 2) return "零食很好吃，但注意不要吃太多！";
-            if (counters['3c'] > 6) return "讓眼睛多多休息，去戶外走走吧！";
-            if (counters.sport === 0) return "多運動有益身體健康！";
-            
-            return "今天也是健康的一天!";
-        }
-
-        function doSleep() {
-            showScreen('screen-summary');
-            setPetImage('sleep', 'summary-pet-img', 'summary-pet-fallback');
-            
-            // 填寫結算數據
-            document.getElementById('stat-eat').innerText = `吃飯：${counters.eat} 次`;
-            document.getElementById('stat-water').innerText = `喝水：${counters.water_cc} cc`;
-            document.getElementById('stat-snack').innerText = `吃零食：${counters.snack} 次`;
-            document.getElementById('stat-3c').innerText = `使用3C：${counters['3c']} 次`;
-            document.getElementById('stat-sport').innerText = `運動：${counters.sport} 次`;
-            document.getElementById('stat-read').innerText = `看書：${counters.read} 次`;
-            document.getElementById('stat-shower').innerText = `洗澡：${counters.shower} 次`;
-            document.getElementById('stat-time').innerText = `就寢時間：${getTimeString()}`;
-
-            // 顯示健康小提醒
-            document.getElementById('summary-feedback').innerText = getFeedbackMessage();
-        }
-        
-        // 初始載入強制更新圖片防呆（預先觸發圖示讀取）
-        setPetImage('idle');
-        setPetImage('sleep', 'summary-pet-img', 'summary-pet-fallback');
-
-    </script>
+    // 啟動程式
+    resetGame();
+  </script>
 </body>
 </html>
